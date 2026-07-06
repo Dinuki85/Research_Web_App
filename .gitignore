@@ -1,2 +1,5 @@
 .env
-_pucache_
+__pycache__/
+*.pyc
+*.pyo
+.funcs_cache.json
