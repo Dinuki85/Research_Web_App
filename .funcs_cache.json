@@ -1,0 +1,288 @@
+[
+  {
+    "index": 0,
+    "name": "handle_support_ticket_and_route_to_appropriate_department",
+    "full_name": "handle_support_ticket_and_route_to_appropriate_department",
+    "rel_path": "app.py",
+    "start_line": 287,
+    "num_lines": 51,
+    "is_bad_smell": true,
+    "smell_probability": 0.9750855931847228,
+    "display_smells": [
+      {
+        "key": "long_method",
+        "label": "Long Method"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 2,
+    "source_code": "def handle_support_ticket_and_route_to_appropriate_department(\n    ticket_data: dict | None,\n) -> dict:\n    \"\"\"Validate a support ticket and determine its routing.\n\n    Args:\n        ticket_data: Dictionary containing ticket information or ``None``.\n\n    Returns:\n        A dictionary with ``status`` set to ``\"success```` and routing details,\n        or ``status`` ``\"error\"`` with an explanatory message.\n\n    Raises:\n        None.\n    \"\"\"\n    if not ticket_data:\n        return _error(\"Ticket data cannot be null\")\n\n    user_id = ticket_data.get(\"user_id\")\n    if not isinstance(user_id, str) or not user_id:\n        return _error(\"Missing or invalid User ID\")\n\n    ticket_info = ticket_data.get(\"ticket_info\")\n    if not isinstance(ticket_info, dict):\n        return _error(\"Missing ticket info object\")\n\n    subject = ticket_info.get(\"subject\")\n    if not isinstance(subject, str) or len(subject) < MIN_SUBJECT_LEN:\n        return _error(\n            \"Subject is too short, minimum 10 characters required\"\n            if isinstance(subject, str)\n            else \"Missing or invalid subject\"\n        )\n\n    description = ticket_info.get(\"description\")\n    if not isinstance(description, str) or len(description) < MIN_DESCRIPTION_LEN:\n        return _error(\n            \"Description is too short, minimum 20 characters required\"\n            if isinstance(description, str)\n            else \"Missing or invalid description\"\n        )\n\n    category = ticket_info.get(\"category\")\n    if category not in VALID_CATEGORIES:\n        return _error(\"Invalid or missing category\")\n\n    severity = ticket_info.get(\"severity\")\n    if severity not in VALID_SEVERITIES:\n        return _error(\"Invalid or missing severity level\")\n\n    return _success(user_id, category, severity)"
+  },
+  {
+    "index": 1,
+    "name": "process_new_user_registration_and_setup_account_profile",
+    "full_name": "process_new_user_registration_and_setup_account_profile",
+    "rel_path": "app.py",
+    "start_line": 86,
+    "num_lines": 49,
+    "is_bad_smell": true,
+    "smell_probability": 0.9889312516224146,
+    "display_smells": [
+      {
+        "key": "long_method",
+        "label": "Long Method"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 2,
+    "source_code": "def process_new_user_registration_and_setup_account_profile(\n    registration_data: Optional[Dict[str, Any]],\n) -> Dict[str, Any]:\n    \"\"\"Validate registration data, assign a plan, and build a profile response.\n\n    Args:\n        registration_data: Dictionary containing user registration fields or None.\n\n    Returns:\n        A dictionary with status, reason, optional user_id, and profile details on success.\n\n    Raises:\n        None.\n    \"\"\"\n    if registration_data is None:\n        return _build_failure_response(\"Registration payload is null\")\n\n    username = _validate_username(registration_data)\n    if username is None:\n        return _build_failure_response(\"Missing or short username\")\n\n    password = _validate_password(registration_data)\n    if password is None:\n        # Determine specific password failure reason\n        pwd = registration_data.get(\"password\")\n        if not (isinstance(pwd, str) and len(pwd) >= MIN_PASSWORD_LENGTH):\n            return _build_failure_response(\"Missing or short password\")\n        if not any(c.isdigit() for c in pwd):\n            return _build_failure_response(\"Password must contain a number\")\n        return _build_failure_response(\"Password must contain an uppercase letter\")\n\n    personal_info = _extract_personal_info(registration_data)\n    if personal_info is None:\n        return _build_failure_response(\n            \"Missing personal info object\"\n            if not isinstance(registration_data.get(\"personal_info\"), dict)\n            else \"Invalid personal info\"\n        )\n\n    preferences = _validate_preferences(registration_data)\n    if preferences is None:\n        prefs = registration_data.get(\"preferences\")\n        if not isinstance(prefs, dict):\n            return _build_failure_response(\"Missing preferences object\")\n        if \"newsletter\" not in prefs:\n            return _build_failure_response(\"Missing newsletter preference\")\n        return _build_failure_response(\"Invalid or missing plan type\")\n\n    return _build_success_response(username, personal_info, preferences)"
+  },
+  {
+    "index": 2,
+    "name": "_apply_discounts",
+    "full_name": "_apply_discounts",
+    "rel_path": "app.py",
+    "start_line": 185,
+    "num_lines": 15,
+    "is_bad_smell": false,
+    "smell_probability": 0.0004015168912851385,
+    "display_smells": [],
+    "smell_count": 0,
+    "source_code": "def _apply_discounts(\n    subtotal: float,\n    is_premium: bool,\n    promo_code: Optional[str],\n) -> float:\n    \"\"\"Apply premium and promotional discounts to the subtotal.\"\"\"\n    total = subtotal\n    if is_premium:\n        total *= 1 - PREMIUM_DISCOUNT_RATE\n    if promo_code == SUMMER_PROMO_CODE:\n        if total > SUMMER_PROMO_THRESHOLD:\n            total -= SUMMER_PROMO_HIGH_DISCOUNT\n        else:\n            total -= SUMMER_PROMO_LOW_DISCOUNT\n    return total"
+  },
+  {
+    "index": 3,
+    "name": "_apply_shipping_and_tax",
+    "full_name": "_apply_shipping_and_tax",
+    "rel_path": "app.py",
+    "start_line": 202,
+    "num_lines": 6,
+    "is_bad_smell": false,
+    "smell_probability": 3.124973521305968e-05,
+    "display_smells": [],
+    "smell_count": 0,
+    "source_code": "def _apply_shipping_and_tax(total: float) -> float:\n    \"\"\"Add shipping fee if needed and apply tax.\"\"\"\n    if total < SHIPPING_THRESHOLD:\n        total += SHIPPING_FEE\n    total += total * TAX_RATE\n    return total"
+  },
+  {
+    "index": 4,
+    "name": "_build_failure_response",
+    "full_name": "_build_failure_response",
+    "rel_path": "app.py",
+    "start_line": 82,
+    "num_lines": 2,
+    "is_bad_smell": false,
+    "smell_probability": 0.000308030813525555,
+    "display_smells": [
+      {
+        "key": "no_docstring",
+        "label": "No Docstring"
+      }
+    ],
+    "smell_count": 1,
+    "source_code": "def _build_failure_response(reason: str) -> Dict[str, Any]:\n    return {\"status\": \"failed\", \"reason\": reason, \"user_id\": None}"
+  },
+  {
+    "index": 5,
+    "name": "_build_success_response",
+    "full_name": "_build_success_response",
+    "rel_path": "app.py",
+    "start_line": 61,
+    "num_lines": 19,
+    "is_bad_smell": false,
+    "smell_probability": 0.0008749006655272017,
+    "display_smells": [
+      {
+        "key": "long_param_list",
+        "label": "Long Parameter List"
+      },
+      {
+        "key": "no_docstring",
+        "label": "No Docstring"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 3,
+    "source_code": "def _build_success_response(\n    username: str,\n    personal_info: Dict[str, Any],\n    preferences: Dict[str, Any],\n) -> Dict[str, Any]:\n    plan = preferences[\"plan_type\"]\n    limits = PLAN_LIMITS[plan]\n    return {\n        \"status\": \"success\",\n        \"reason\": \"Account created successfully\",\n        \"user_id\": f\"USR-{username.upper()}\",\n        \"profile\": {\n            \"name\": f\"{personal_info['first_name']} {personal_info['last_name']}\",\n            \"age\": personal_info[\"age\"],\n            \"plan\": plan,\n            \"limits\": limits,\n            \"newsletter_subscribed\": preferences[\"newsletter\"],\n        },\n    }"
+  },
+  {
+    "index": 6,
+    "name": "_calculate_items_total",
+    "full_name": "_calculate_items_total",
+    "rel_path": "app.py",
+    "start_line": 168,
+    "num_lines": 15,
+    "is_bad_smell": false,
+    "smell_probability": 0.00613326943579559,
+    "display_smells": [
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 1,
+    "source_code": "def _calculate_items_total(items: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:\n    \"\"\"Calculate subtotal for all items, applying bulk discounts.\"\"\"\n    subtotal = 0.0\n    for item in items:\n        if \"price\" not in item or \"qty\" not in item:\n            return {\"s\": False, \"msg\": \"Missing price or qty\"}\n        price = item[\"price\"]\n        qty = item[\"qty\"]\n        if price <= 0 or qty <= 0:\n            return {\"s\": False, \"msg\": \"Invalid price/qty\"}\n        if qty > BULK_DISCOUNT_THRESHOLD:\n            subtotal += price * qty * (1 - BULK_DISCOUNT_RATE)\n        else:\n            subtotal += price * qty\n    return {\"s\": True, \"subtotal\": subtotal}"
+  },
+  {
+    "index": 7,
+    "name": "_error",
+    "full_name": "_error",
+    "rel_path": "app.py",
+    "start_line": 257,
+    "num_lines": 3,
+    "is_bad_smell": false,
+    "smell_probability": 5.045771052878278e-05,
+    "display_smells": [],
+    "smell_count": 0,
+    "source_code": "def _error(message: str) -> dict:\n    \"\"\"Return a standardized error response.\"\"\"\n    return {\"status\": \"error\", \"message\": message}"
+  },
+  {
+    "index": 8,
+    "name": "_extract_personal_info",
+    "full_name": "_extract_personal_info",
+    "rel_path": "app.py",
+    "start_line": 32,
+    "num_lines": 15,
+    "is_bad_smell": false,
+    "smell_probability": 0.0015077869422391412,
+    "display_smells": [
+      {
+        "key": "no_docstring",
+        "label": "No Docstring"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 2,
+    "source_code": "def _extract_personal_info(registration_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:\n    info = registration_data.get(\"personal_info\")\n    if not isinstance(info, dict):\n        return None\n    first = info.get(\"first_name\")\n    last = info.get(\"last_name\")\n    age = info.get(\"age\")\n    if (\n        isinstance(first, str)\n        and isinstance(last, str)\n        and isinstance(age, int)\n        and age >= MIN_AGE\n    ):\n        return {\"first_name\": first, \"last_name\": last, \"age\": age}\n    return None"
+  },
+  {
+    "index": 9,
+    "name": "_success",
+    "full_name": "_success",
+    "rel_path": "app.py",
+    "start_line": 262,
+    "num_lines": 23,
+    "is_bad_smell": false,
+    "smell_probability": 0.0009550489581895875,
+    "display_smells": [
+      {
+        "key": "long_method",
+        "label": "Long Method"
+      }
+    ],
+    "smell_count": 1,
+    "source_code": "def _success(user_id: str, category: str, severity: str) -> dict:\n    \"\"\"Return a standardized success response with routing details.\"\"\"\n    if category == \"technical\" and severity == \"critical\":\n        assigned_to = \"tier_3_support\"\n        eta = \"1 hour\"\n    elif category == \"billing\" and severity in {\"high\", \"critical\"}:\n        assigned_to = \"billing_manager\"\n        eta = \"4 hours\"\n    else:\n        assigned_to = f\"{category}_team\"\n        eta = \"24 hours\"\n\n    ticket_id = f\"TKT-{user_id[:3].upper()}\"\n    return {\n        \"status\": \"success\",\n        \"message\": \"Ticket routed successfully\",\n        \"details\": {\n            \"ticket_id\": ticket_id,\n            \"assigned_to\": assigned_to,\n            \"eta\": eta,\n            \"priority\": severity,\n        },\n    }"
+  },
+  {
+    "index": 10,
+    "name": "_validate_input",
+    "full_name": "_validate_input",
+    "rel_path": "app.py",
+    "start_line": 152,
+    "num_lines": 14,
+    "is_bad_smell": false,
+    "smell_probability": 0.01926041876717519,
+    "display_smells": [],
+    "smell_count": 0,
+    "source_code": "def _validate_input(\n    data: Optional[Dict[str, Any]],\n    user_id: str,\n) -> Optional[Dict[str, Any]]:\n    \"\"\"Return an error dict if input validation fails, otherwise None.\"\"\"\n    if data is None:\n        return {\"s\": False, \"msg\": \"No data\"}\n    if not user_id:\n        return {\"s\": False, \"msg\": \"Invalid user ID\"}\n    if \"items\" not in data:\n        return {\"s\": False, \"msg\": \"No items provided\"}\n    if not isinstance(data[\"items\"], list) or len(data[\"items\"]) == 0:\n        return {\"s\": False, \"msg\": \"Cart is empty\"}\n    return None"
+  },
+  {
+    "index": 11,
+    "name": "_validate_password",
+    "full_name": "_validate_password",
+    "rel_path": "app.py",
+    "start_line": 21,
+    "num_lines": 9,
+    "is_bad_smell": false,
+    "smell_probability": 0.004720916817055396,
+    "display_smells": [
+      {
+        "key": "no_docstring",
+        "label": "No Docstring"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 2,
+    "source_code": "def _validate_password(registration_data: Dict[str, Any]) -> Optional[str]:\n    password = registration_data.get(\"password\")\n    if not (isinstance(password, str) and len(password) >= MIN_PASSWORD_LENGTH):\n        return None\n    if not any(c.isdigit() for c in password):\n        return None\n    if not any(c.isupper() for c in password):\n        return None\n    return password"
+  },
+  {
+    "index": 12,
+    "name": "_validate_preferences",
+    "full_name": "_validate_preferences",
+    "rel_path": "app.py",
+    "start_line": 49,
+    "num_lines": 10,
+    "is_bad_smell": false,
+    "smell_probability": 0.00222467393129289,
+    "display_smells": [
+      {
+        "key": "no_docstring",
+        "label": "No Docstring"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 2,
+    "source_code": "def _validate_preferences(registration_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:\n    prefs = registration_data.get(\"preferences\")\n    if not isinstance(prefs, dict):\n        return None\n    if \"newsletter\" not in prefs:\n        return None\n    plan = prefs.get(\"plan_type\")\n    if not (isinstance(plan, str) and plan in PLAN_LIMITS):\n        return None\n    return {\"plan_type\": plan, \"newsletter\": prefs[\"newsletter\"]}"
+  },
+  {
+    "index": 13,
+    "name": "_validate_username",
+    "full_name": "_validate_username",
+    "rel_path": "app.py",
+    "start_line": 14,
+    "num_lines": 5,
+    "is_bad_smell": false,
+    "smell_probability": 6.111871589774792e-05,
+    "display_smells": [
+      {
+        "key": "no_docstring",
+        "label": "No Docstring"
+      }
+    ],
+    "smell_count": 1,
+    "source_code": "def _validate_username(registration_data: Dict[str, Any]) -> Optional[str]:\n    username = registration_data.get(\"username\")\n    if isinstance(username, str) and len(username) >= MIN_USERNAME_LENGTH:\n        return username\n    return None"
+  },
+  {
+    "index": 14,
+    "name": "p_chk",
+    "full_name": "p_chk",
+    "rel_path": "app.py",
+    "start_line": 210,
+    "num_lines": 39,
+    "is_bad_smell": false,
+    "smell_probability": 0.17145771500322288,
+    "display_smells": [
+      {
+        "key": "long_method",
+        "label": "Long Method"
+      },
+      {
+        "key": "long_param_list",
+        "label": "Long Parameter List"
+      },
+      {
+        "key": "long_lines",
+        "label": "Long Lines (>79 chars)"
+      }
+    ],
+    "smell_count": 3,
+    "source_code": "def p_chk(\n    data: Dict[str, Any],\n    user_id: str,\n    is_premium: bool,\n    promo_code: Optional[str] = None,\n) -> Dict[str, Any]:\n    \"\"\"Process checkout.\n\n    Args:\n        data: Dictionary containing checkout data, must include an \"items\" list.\n        user_id: Identifier of the user performing checkout.\n        is_premium: Whether the user qualifies for premium discount.\n        promo_code: Optional promotional code to apply.\n\n    Returns:\n        A dictionary with keys:\n            s (bool): Success flag.\n            msg (str): Message describing the result.\n            total (float, optional): Rounded total amount when successful.\n\n    \"\"\"\n    error = _validate_input(data, user_id)\n    if error:\n        return error\n\n    items = data[\"items\"]\n    items_result = _calculate_items_total(items)\n    if not items_result[\"s\"]:\n        return items_result\n\n    subtotal = items_result[\"subtotal\"]\n    discounted_total = _apply_discounts(subtotal, is_premium, promo_code)\n    final_total = _apply_shipping_and_tax(discounted_total)\n\n    return {\n        \"s\": True,\n        \"msg\": \"Success\",\n        \"total\": round(final_total, 2),\n    }"
+  }
+]

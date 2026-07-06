@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}CodeRefactor AI — Analyze Repository{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-icon">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                <circle cx="32" cy="32" r="30" stroke="#6366f1" stroke-width="2" fill="none"/>
+                <path d="M24 38l-6-6 6-6M40 26l6 6-6 6M34 22l-6 20" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h1>Analyze Python Repositories for Code Smells</h1>
+        <p class="hero-subtitle">
+            Clone any public GitHub repo, detect code smells in Python functions,
+            and get AI-powered refactoring suggestions — all from your browser.
+        </p>
+
+        {% if error %}
+        <div class="alert alert-error">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10 6v4M10 13v.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
+        <form action="/analyze" method="post" class="repo-form">
+            <div class="input-group">
+                <input
+                    type="text"
+                    name="repo_url"
+                    id="repo_url"
+                    placeholder="https://github.com/username/repository"
+                    value="{{ repo_url or '' }}"
+                    required
+                    autofocus
+                />
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M10 6v8M6 10h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Analyze
+                </button>
+            </div>
+            <div class="input-group input-group-optional">
+                <input
+                    type="text"
+                    name="specific_file"
+                    id="specific_file"
+                    placeholder="Optional: specific file path, e.g. src/utils.py"
+                    value="{{ specific_file or '' }}"
+                />
+            </div>
+            <p class="input-hint">
+                Paste a public GitHub repository URL and click <strong>Analyze</strong>
+                to scan all Python functions for code quality issues.
+                Optionally, specify a file path inside the repo to focus on a single file.
+            </p>
+        </form>
+    </div>
+</section>
+
+<section class="steps">
+    <div class="step-card">
+        <div class="step-number">1</div>
+        <h3>Clone &amp; Scan</h3>
+        <p>Clone the repo and extract every Python function with its source code.</p>
+    </div>
+    <div class="step-arrow">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+    <div class="step-card">
+        <div class="step-number">2</div>
+        <h3>Detect Smells</h3>
+        <p>ML-powered analysis identifies bad-smell functions with detailed breakdowns.</p>
+    </div>
+    <div class="step-arrow">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12h14M13 6l6 6-6 6" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+    <div class="step-card">
+        <div class="step-number">3</div>
+        <h3>Refactor</h3>
+        <p>Select a function, choose a model, and get an AI-refactored version.</p>
+    </div>
+</section>
+{% endblock %}
