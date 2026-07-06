@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 *.pyo
 .funcs_cache.json
+models/*.pkl
+models/*.joblib
