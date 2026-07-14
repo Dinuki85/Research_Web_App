@@ -94,6 +94,18 @@ def _predict_one(func_name: str, source_code: str, num_lines: int) -> str:
     return class_names[label_idx]
 
 
+def predict_file_language(file_name: str, source_code: str) -> str:
+    """Predict the programming language of an entire file."""
+    bundle      = _load_bundle()
+    model       = bundle["model"]
+    class_names = bundle["class_names"]
+
+    num_lines = len(source_code.splitlines())
+    X         = _build_feature_vector(file_name, source_code, num_lines)
+    label_idx = model.predict(X)[0]
+    return class_names[label_idx]
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def detect_repo_language(functions: list) -> tuple:

@@ -3,77 +3,84 @@
 {% block title %}CodeRefactor AI — {{ repo_url }} | Functions{% endblock %}
 
 {% block content %}
-<div class="result-header">
-    <div class="result-header-inner">
-        <div>
-            <h2>Repository Analysis</h2>
-            <p class="repo-url">{{ repo_url }}</p>
-        </div>
-        <div class="summary-badges">
-            <span class="badge badge-total">{{ total }} functions</span>
-            <span class="badge {% if bad_count > 0 %}badge-bad{% else %}badge-good{% endif %}">
-                {{ bad_count }} with smells
-            </span>
-            <span class="badge badge-good">{{ good_count }} clean</span>
-        </div>
+<div class="dashboard-header">
+    <div>
+        <h2>Repository Analysis</h2>
+        <p style="color: var(--text-muted); font-family: var(--font-mono);">{{ repo_url }}</p>
+    </div>
+    <div style="display: flex; gap: 1rem;">
+        <span class="stats-badge" style="color: var(--text-main); border-color: var(--glass-border); background: var(--glass-bg);">
+            {{ total }} functions
+        </span>
+        <span class="stats-badge" {% if bad_count == 0 %}style="color: var(--success); border-color: var(--success); background: hsla(140, 70%, 55%, 0.1);" {% endif %}>
+            {{ bad_count }} with smells
+        </span>
+        <span class="stats-badge" style="color: var(--success); border-color: var(--success); background: hsla(140, 70%, 55%, 0.1);">
+            {{ good_count }} clean
+        </span>
     </div>
 </div>
 
-<div class="function-list">
+<div class="functions-grid">
     {% for func in functions %}
-    <div class="func-card {% if func.is_bad_smell %}func-bad{% else %}func-good{% endif %}"
+    <div class="function-card glass"
          data-index="{{ loop.index0 }}"
          onclick="openRefactor({{ loop.index0 }})">
-
-        <div class="func-header">
-            <div class="func-name-wrap">
-                <span class="func-indicator {% if func.is_bad_smell %}indicator-bad{% else %}indicator-good{% endif %}">
-                    {% if func.is_bad_smell %}&#9888;{% else %}&#10003;{% endif %}
-                </span>
-                <div>
-                    <span class="func-name">{{ func.full_name }}</span>
-                    <span class="func-meta">{{ func.rel_path }}:{{ func.start_line }} &middot; {{ func.num_lines }} lines</span>
-                </div>
+         
+        <div class="fc-header">
+            <div>
+                <div class="fc-name">{{ func.name }}</div>
+                <div class="fc-path">{{ func.rel_path }}:{{ func.start_line }} &middot; {{ func.num_lines }} lines</div>
             </div>
-            <div class="func-stats">
+            <div style="display: flex; gap: 0.5rem; flex-direction: column; align-items: flex-end;">
                 {% if func.is_bad_smell %}
-                <span class="prob-badge prob-{{ 'high' if func.smell_probability > 0.8 else 'med' }}">
-                    {{ "%.0f"|format(func.smell_probability * 100) }}%
-                </span>
-                <span class="smell-count">{{ func.smell_count }} smell{% if func.smell_count != 1 %}s{% endif %}</span>
+                <span class="smell-tag smell-bad">{{ "%.0f"|format(func.smell_probability * 100) }}% Smell Score</span>
+                <span style="font-size: 0.8rem; color: var(--error);">{{ func.smell_count }} issues</span>
                 {% else %}
-                <span class="prob-badge prob-clean">Clean</span>
+                <span class="smell-tag smell-good">Clean</span>
                 {% endif %}
             </div>
         </div>
 
         {% if func.display_smells %}
-        <div class="func-smells">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
             {% for smell in func.display_smells %}
-            <span class="smell-tag smell-{{ smell.key }}">{{ smell.label }}</span>
+            <span class="smell-tag smell-bad" style="opacity: 0.8; border: none; background: hsla(0, 80%, 65%, 0.15);">
+                {{ smell.label }}
+            </span>
             {% endfor %}
         </div>
         {% endif %}
 
-        <pre class="func-preview"><code>{{ func.source_code[:300] }}{% if func.source_code|length > 300 %}...{% endif %}</code></pre>
+        <div class="code-container" style="margin-bottom: 0;">
+            <div class="code-header">
+                <span>Preview</span>
+                <span>Python</span>
+            </div>
+            <pre style="padding: 1rem; margin: 0; font-size: 0.8rem;"><code>{{ func.source_code[:200] }}{% if func.source_code|length > 200 %}...{% endif %}</code></pre>
+        </div>
     </div>
     {% endfor %}
 </div>
 
 <!-- Refactor Modal -->
 <div id="refactorModal" class="modal-overlay" style="display:none">
-    <div class="modal">
+    <div class="modal-content glass">
         <div class="modal-header">
-            <h3>Refactor Function</h3>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <h3 style="font-size: 1.5rem; margin: 0;">Refactor Function</h3>
+            <button class="close-btn" onclick="closeModal()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+            </button>
         </div>
-        <div class="modal-body" id="modalBody">
-            <div class="modal-loading" id="modalLoading">
+        <div id="modalBody">
+            <div class="loader-wrapper" id="modalLoading">
                 <div class="spinner"></div>
                 <p>Analyzing function &amp; preparing refactoring...</p>
             </div>
         </div>
-        <div class="modal-footer" id="modalFooter" style="display:none">
+        <div id="modalFooter" style="display:none; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; justify-content: space-between; align-items: center;">
             <button class="btn btn-secondary" onclick="closeModal()">Close</button>
         </div>
     </div>
@@ -82,16 +89,17 @@
 
 {% block scripts %}
 <script>
-const functionsCache = {{ functions|tojson|safe }};
-
 function closeModal() {
-    document.getElementById('refactorModal').style.display = 'none';
-    document.getElementById('modalBody').innerHTML = `
-        <div class="modal-loading" id="modalLoading">
-            <div class="spinner"></div>
-            <p>Analyzing function &amp; preparing refactoring...</p>
-        </div>`;
-    document.getElementById('modalFooter').style.display = 'none';
+    document.getElementById('refactorModal').classList.remove('active');
+    setTimeout(() => {
+        document.getElementById('refactorModal').style.display = 'none';
+        document.getElementById('modalBody').innerHTML = `
+            <div class="loader-wrapper" id="modalLoading">
+                <div class="spinner"></div>
+                <p>Analyzing function &amp; preparing refactoring...</p>
+            </div>`;
+        document.getElementById('modalFooter').style.display = 'none';
+    }, 300);
 }
 
 async function openRefactor(index) {
@@ -99,7 +107,10 @@ async function openRefactor(index) {
     const body = document.getElementById('modalBody');
     const footer = document.getElementById('modalFooter');
     modal.style.display = 'flex';
-    body.innerHTML = `<div class="modal-loading"><div class="spinner"></div><p>Loading function details...</p></div>`;
+    // Small delay to allow display:flex to apply before adding opacity class
+    setTimeout(() => modal.classList.add('active'), 10);
+    
+    body.innerHTML = `<div class="loader-wrapper"><div class="spinner"></div><p>Loading function details...</p></div>`;
     footer.style.display = 'none';
 
     try {
@@ -109,16 +120,14 @@ async function openRefactor(index) {
         body.innerHTML = buildFunctionView(func);
         footer.style.display = 'flex';
         footer.innerHTML = `
-            <div class="footer-left">
-                <div class="api-key-row">
-                    <span class="key-indicator">API key configured</span>
-                    <button class="btn btn-primary" onclick="doRefactor(${index})">
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                            <path d="M14 2H6a2 2 0 00-2 2v16l6-3 6 3V4a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        Refactor
-                    </button>
-                </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span style="color: var(--text-muted); font-size: 0.9rem;">API key configured</span>
+                <button class="btn btn-primary" onclick="doRefactor(${index})">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M14 2H6a2 2 0 00-2 2v16l6-3 6 3V4a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    Refactor
+                </button>
             </div>
             <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
         `;
@@ -132,46 +141,41 @@ async function openRefactor(index) {
 function buildFunctionView(func) {
     let smellsHtml = '';
     if (func.display_smells && func.display_smells.length) {
-        smellsHtml = `<div class="smell-list">
-            <h4>Detected Code Smells</h4>
-            <div class="smell-tags">`;
+        smellsHtml = `<div style="margin-bottom: 1.5rem;">
+            <h4 style="margin-bottom: 0.5rem;">Detected Code Smells</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">`;
         for (const s of func.display_smells) {
-            smellsHtml += `<span class="smell-tag smell-${s.key}">${s.label}</span>`;
+            smellsHtml += `<span class="smell-tag smell-bad">${s.label}</span>`;
         }
         smellsHtml += `</div></div>`;
     } else {
-        smellsHtml = `<div class="smell-list"><span class="badge badge-good">No code smells detected</span></div>`;
+        smellsHtml = `<div style="margin-bottom: 1.5rem;"><span class="smell-tag smell-good">No code smells detected</span></div>`;
     }
 
     const probPct = Math.round(func.smell_probability * 100);
-    const probClass = probPct > 80 ? 'high' : (probPct > 50 ? 'med' : 'low');
 
     return `
-        <div class="func-detail-header">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 1.5rem; align-items: flex-start;">
             <div>
-                <h4 class="func-detail-name">${func.full_name}</h4>
-                <p class="func-detail-meta">${func.rel_path}:${func.start_line} &middot; ${func.num_lines} lines</p>
+                <h4 style="font-family: var(--font-mono); font-size: 1.25rem; color: var(--primary); margin: 0;">${func.full_name}</h4>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.25rem;">${func.rel_path}:${func.start_line} &middot; ${func.num_lines} lines</p>
             </div>
-            <div class="func-detail-stats">
-                <div class="stat-box ${func.is_bad_smell ? 'stat-bad' : 'stat-good'}">
-                    <span class="stat-label">Smell Score</span>
-                    <span class="stat-value">${func.is_bad_smell ? probPct + '%' : '0%'}</span>
-                </div>
-                <div class="stat-box ${func.smell_count > 0 ? 'stat-bad' : 'stat-good'}">
-                    <span class="stat-label">Issues</span>
-                    <span class="stat-value">${func.smell_count || 0}</span>
+            <div style="display: flex; gap: 1rem;">
+                <div style="text-align: right;">
+                    <span style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Smell Score</span>
+                    <span style="font-weight: bold; font-size: 1.2rem; color: ${func.is_bad_smell ? 'var(--error)' : 'var(--success)'}">${func.is_bad_smell ? probPct + '%' : '0%'}</span>
                 </div>
             </div>
         </div>
         ${smellsHtml}
-        <div class="code-block">
+        <div class="code-container">
             <div class="code-header">
                 <span>Original Source</span>
-                <span class="code-lang">Python</span>
+                <span>Python</span>
             </div>
-            <pre><code>${escapeHtml(func.source_code)}</code></pre>
+            <pre style="margin: 0;"><code>${escapeHtml(func.source_code)}</code></pre>
         </div>
-        <div class="refactor-preview" id="refactorPreview" style="display:none"></div>
+        <div id="refactorPreview" style="display:none; margin-top: 2rem;"></div>
     `;
 }
 
@@ -182,7 +186,7 @@ async function doRefactor(index) {
 
     const preview = document.getElementById('refactorPreview');
     preview.style.display = 'block';
-    preview.innerHTML = `<div class="modal-loading"><div class="spinner"></div><p>Calling LLM to refactor this function...</p></div>`;
+    preview.innerHTML = `<div class="loader-wrapper"><div class="spinner"></div><p>Calling LLM to refactor this function...</p></div>`;
 
     // Scroll to preview
     preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -253,57 +257,48 @@ function buildRecommendationView(result) {
 
 function buildRefactoredView(result) {
     const fixed = result.smells_fixed;
-    const fixedClass = fixed > 0 ? 'stat-good' : (fixed < 0 ? 'stat-bad' : '');
-
+    const isGood = fixed > 0;
+    
     return `
-        <div class="refactor-summary">
-            <div class="summary-stats">
-                <div class="stat-box stat-good">
-                    <span class="stat-label">Smells Fixed</span>
-                    <span class="stat-value">${fixed > 0 ? '+' : ''}${fixed}</span>
+        <div style="background: hsla(140, 70%, 55%, 0.1); border: 1px solid var(--success); padding: 1.5rem; border-radius: var(--radius); margin-bottom: 2rem;">
+            <h4 style="color: var(--success); margin: 0 0 1rem 0; font-size: 1.2rem;">Refactoring Successful</h4>
+            <div style="display: flex; gap: 2rem;">
+                <div>
+                    <span style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Smells Fixed</span>
+                    <span style="font-weight: bold; font-size: 1.2rem; color: ${isGood ? 'var(--success)' : 'var(--text-main)'}">${fixed > 0 ? '+' : ''}${fixed}</span>
                 </div>
-                <div class="stat-box ${fixedClass}">
-                    <span class="stat-label">Remaining</span>
-                    <span class="stat-value">${result.refactored_smell_count}</span>
+                <div>
+                    <span style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Lines</span>
+                    <span style="font-weight: bold; font-size: 1.2rem;">${result.original_lines} &rarr; ${result.refactored_lines}</span>
                 </div>
-                <div class="stat-box">
-                    <span class="stat-label">Lines</span>
-                    <span class="stat-value">${result.original_lines} &rarr; ${result.refactored_lines}</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-label">Model</span>
-                    <span class="stat-value">${result.recommendation.display_name}</span>
+                <div>
+                    <span style="display: block; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Model Used</span>
+                    <span style="font-weight: bold; font-size: 1.2rem; color: var(--primary);">${result.recommendation.display_name}</span>
                 </div>
             </div>
+            
             ${result.refactored_smells && result.refactored_smells.length ?
-                `<div class="smell-list"><h4>Remaining Smells</h4><div class="smell-tags">${
-                    result.refactored_smells.map(s =>
-                        `<span class="smell-tag smell-${s.key}">${s.label}</span>`
-                    ).join('')
+                `<div style="margin-top: 1rem;"><h5 style="margin-bottom: 0.5rem; color: var(--text-muted);">Remaining Smells:</h5><div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">${
+                    result.refactored_smells.map(s => `<span class="smell-tag smell-bad">${s.label}</span>`).join('')
                 }</div></div>` :
-                `<div class="smell-list"><span class="badge badge-good">All smells resolved!</span></div>`
+                `<div style="margin-top: 1rem;"><span class="smell-tag smell-good">All smells resolved!</span></div>`
             }
         </div>
 
-        <div class="code-compare">
-            <div class="code-block">
+        <div class="diff-container">
+            <div class="code-container" style="margin: 0;">
                 <div class="code-header">
                     <span>Original</span>
-                    <span class="code-lang">Python &middot; ${result.original_smell_count} smell${result.original_smell_count !== 1 ? 's' : ''}</span>
+                    <span style="color: var(--error);">${result.original_smell_count} smell${result.original_smell_count !== 1 ? 's' : ''}</span>
                 </div>
-                <pre><code>${escapeHtml(result.original_code)}</code></pre>
+                <pre style="margin: 0; background: hsla(0, 80%, 65%, 0.05);"><code>${escapeHtml(result.original_code)}</code></pre>
             </div>
-            <div class="code-block code-refactored">
-                <div class="code-header code-header-refactored">
+            <div class="code-container" style="margin: 0; border-color: var(--success);">
+                <div class="code-header" style="background: hsla(140, 70%, 55%, 0.1);">
                     <span>Refactored</span>
-                    <span class="code-lang">
-                        <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
-                            <path d="M14 2H6a2 2 0 00-2 2v16l6-3 6 3V4a2 2 0 00-2-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                        </svg>
-                        ${result.refactored_smell_count} smell${result.refactored_smell_count !== 1 ? 's' : ''}
-                    </span>
+                    <span style="color: var(--success);">${result.refactored_smell_count} smell${result.refactored_smell_count !== 1 ? 's' : ''}</span>
                 </div>
-                <pre><code>${escapeHtml(result.refactored_code)}</code></pre>
+                <pre style="margin: 0;"><code>${escapeHtml(result.refactored_code)}</code></pre>
             </div>
         </div>
     `;

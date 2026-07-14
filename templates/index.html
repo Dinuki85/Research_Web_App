@@ -46,19 +46,10 @@
                     Analyze
                 </button>
             </div>
-            <div class="input-group input-group-optional">
-                <input
-                    type="text"
-                    name="specific_file"
-                    id="specific_file"
-                    placeholder="Optional: specific file path, e.g. src/utils.py"
-                    value="{{ specific_file or '' }}"
-                />
             </div>
             <p class="input-hint">
-                Paste a public GitHub repository URL and click <strong>Analyze</strong>
-                to scan all Python functions for code quality issues.
-                Optionally, specify a file path inside the repo to focus on a single file.
+                Paste a public GitHub repository URL or absolute directory path and click <strong>Analyze</strong>
+                to scan all Python files for code quality issues.
             </p>
         </form>
     </div>

@@ -50,27 +50,44 @@ def clone_repository(repo_url: str, target_dir: Optional[Path] = None) -> Path:
     return target_dir
 
 
-def find_python_files(repo_path: Path) -> List[Path]:
+def find_and_filter_python_files(repo_path: Path) -> List[Path]:
     """
-    Recursively find all Python files in a repository, excluding
-    common non-source directories.
-
-    Returns:
-        List of paths to .py files.
+    Recursively find all files, apply exclusions, and use ML to filter
+    only Python files.
     """
+    from src.language_detector import predict_file_language
+    
     excluded_dirs = {
-        ".git", "__pycache__", "venv", ".venv", "env", ".env",
+        ".git", "__pycache__", "_pycache", "venv", ".venv", "env", ".env",
         "node_modules", "dist", "build", ".tox", ".eggs",
         "egg-info", ".mypy_cache", ".pytest_cache", ".coverage",
+        "src"
     }
 
+    # Potential source file extensions to check
+    allowed_exts = {".py", ".java", ".js", ".cs", ".php", ".c", ".cpp", ".ts", ".go", ".rb"}
+    
     python_files = []
+    
     for root, dirs, files in os.walk(str(repo_path)):
-        # Modify dirs in-place to skip excluded directories
-        dirs[:] = [d for d in dirs if d not in excluded_dirs and not d.startswith(".")]
+        # Exclude directories
+        dirs[:] = [
+            d for d in dirs 
+            if d not in excluded_dirs and not d.startswith(".") and d != "src"
+        ]
         for f in files:
-            if f.endswith(".py"):
-                python_files.append(Path(root) / f)
+            if f == "cli.py" or f == "src":
+                continue
+                
+            path = Path(root) / f
+            if path.suffix.lower() in allowed_exts:
+                try:
+                    content = path.read_text(encoding="utf-8", errors="ignore")
+                    lang = predict_file_language(f, content)
+                    if lang.lower() == "python":
+                        python_files.append(path)
+                except Exception as e:
+                    print(f"  [WARN] Failed to process {path}: {e}", file=sys.stderr)
 
     return sorted(python_files)
 
@@ -205,8 +222,8 @@ def analyze_repository(repo_path: Path) -> List[Dict]:
     if not repo_path.exists():
         raise FileNotFoundError(f"Repository path does not exist: {repo_path}")
 
-    python_files = find_python_files(repo_path)
-    print(f"Found {len(python_files)} Python files in {repo_path}")
+    python_files = find_and_filter_python_files(repo_path)
+    print(f"Found {len(python_files)} Python files (ML filtered) in {repo_path}")
 
     all_functions = []
     for py_file in python_files:
@@ -237,42 +254,3 @@ def scan_functions(repo_path: Path) -> List[Dict]:
     return functions
 
 
-def scan_files(file_paths: List[Path], root: Optional[Path] = None) -> List[Dict]:
-    """
-    Scan a specific list of Python files (not a whole repo) and extract functions.
-
-    Args:
-        file_paths: List of paths to Python files to scan.
-        root: Optional root path for computing relative paths.
-
-    Returns:
-        List of function info dicts.
-    """
-    root = Path(root).resolve() if root else None
-    all_functions = []
-
-    for py_file in file_paths:
-        py_file = Path(py_file).resolve()
-        if not py_file.exists():
-            print(f"  [WARN] File does not exist: {py_file}", file=sys.stderr)
-            continue
-        if not py_file.suffix == ".py":
-            print(f"  [WARN] Not a Python file: {py_file}", file=sys.stderr)
-            continue
-
-        functions = extract_functions_from_file(py_file)
-
-        # Add relative paths
-        for func in functions:
-            abs_path = Path(func["file_path"])
-            if root:
-                try:
-                    func["rel_path"] = str(abs_path.relative_to(root))
-                except ValueError:
-                    func["rel_path"] = func["file_path"]
-            else:
-                func["rel_path"] = func["file_path"]
-
-        all_functions.extend(functions)
-
-    return all_functions

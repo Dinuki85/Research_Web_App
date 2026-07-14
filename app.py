@@ -36,7 +36,6 @@ from src.repo_analyzer import scan_functions, clone_repository
 from src.code_smell_detector import predict_smell_batch, predict_smell
 from src.llm_recommender import detect_code_smells, get_best_llm, get_ranking, SMELL_NAMES
 from src.refactoring_engine import refactor_function, verify_refactored_code, _clean_code_output
-from src.language_detector import is_python_repo, detect_language_by_extensions
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24).hex()
@@ -87,7 +86,6 @@ def index():
 def analyze():
     """Clone repo, scan functions, detect smells, and show results."""
     repo_url      = request.form.get("repo_url", "").strip()
-    specific_file = request.form.get("specific_file", "").strip()
     if not repo_url:
         return render_template("index.html", error="Please enter a GitHub repository URL.")
 
@@ -117,60 +115,16 @@ def analyze():
             temp_dir = tempfile.mkdtemp(prefix="coderefactor-web-")
             repo_path = clone_repository(github_url, Path(temp_dir))
 
-        # ── Language detection (gate: Python only) ───────────────────────
-        # Runs on raw repo files BEFORE scan_functions() — reliable for
-        # all repo types including mixed repos.
-        ok, detected_lang, confidence = detect_language_by_extensions(repo_path)
-        if not ok:
+        # ── Scan functions ───────────────────────────────────────────────
+        all_functions = scan_functions(repo_path)
+        if not all_functions:
             _cleanup_temp(temp_dir)
             session.pop("temp_dir", None)
             return render_template(
                 "index.html",
-                error=(
-                    f"Detected {detected_lang} repository "
-                    f"(confidence: {confidence * 100:.0f}%). "
-                    "This tool only supports Python repositories. "
-                    "Please submit a Python project."
-                ),
+                error="Repository could not be scanned for Python functions.",
                 repo_url=repo_url,
-                specific_file=specific_file,
             )
-
-        # ── Scan functions ───────────────────────────────────────────────
-        all_functions = scan_functions(repo_path)
-        if not all_functions:
-            return render_template(
-                "index.html",
-                error="No Python functions found in this repository.",
-                repo_url=repo_url,
-                specific_file=specific_file,
-            )
-
-        # ── Optional: filter to a specific file ──────────────────────────
-        if specific_file:
-            # Normalise separator so both  src/utils.py  and  src\utils.py  work
-            norm_filter = specific_file.replace("\\", "/")
-            filtered = [
-                f for f in all_functions
-                if f.get("rel_path", "").replace("\\", "/").endswith(norm_filter)
-            ]
-            if not filtered:
-                # Check if the path even exists in the repo
-                target_path = repo_path / specific_file
-                if not target_path.exists():
-                    return render_template(
-                        "index.html",
-                        error=f"File not found in repository: {specific_file}",
-                        repo_url=repo_url,
-                        specific_file=specific_file,
-                    )
-                return render_template(
-                    "index.html",
-                    error=f"No Python functions found in: {specific_file}",
-                    repo_url=repo_url,
-                    specific_file=specific_file,
-                )
-            all_functions = filtered
 
         # ── Detect smells ────────────────────────────────────────────────
         codes = [f["source_code"] for f in all_functions]
