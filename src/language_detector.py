@@ -78,9 +78,8 @@ def _build_feature_vector(func_name: str, source_code: str, num_lines: int):
 
     x_char  = tfidf_char.transform([combined_text])
     x_word  = tfidf_word.transform([combined_text])
-    x_lines = csr_matrix([[float(num_lines)]])
 
-    return hstack([x_char, x_word, x_lines])
+    return hstack([x_char, x_word])
 
 
 def _predict_one(func_name: str, source_code: str, num_lines: int) -> str:
